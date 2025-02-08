@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Konum Mesafe Hesaplama</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        #map {
+            height: 400px;
+            width: 100%;
+            margin-top: 20px;
+            border-radius: 8px;
+        }
+        .location-input {
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">Sosyal Ağ</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/search">Kullanıcı Ara</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/profile/<%= currentUserId %>">Profilim</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="card">
+            <div class="card-body">
+                <h3 class="card-title">Konum Mesafe Hesaplama</h3>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="location-input">
+                            <h5>Başlangıç Konumu</h5>
+                            <div class="mb-2">
+                                <input type="number" id="startLat" class="form-control" placeholder="Başlangıç Enlem" step="any">
+                            </div>
+                            <div class="mb-2">
+                                <input type="number" id="startLng" class="form-control" placeholder="Başlangıç Boylam" step="any">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="location-input">
+                            <h5>Bitiş Konumu</h5>
+                            <div class="mb-2">
+                                <input type="number" id="endLat" class="form-control" placeholder="Bitiş Enlem" step="any">
+                            </div>
+                            <div class="mb-2">
+                                <input type="number" id="endLng" class="form-control" placeholder="Bitiş Boylam" step="any">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="calculateDistance()" class="btn btn-primary">Mesafeyi Hesapla</button>
+                
+                <div id="result" class="mt-3">
+                    <h5>Sonuç:</h5>
+                    <p id="distance" class="lead"></p>
+                </div>
+
+                <div id="map"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        let map;
+        let markers = [];
+        let polyline;
+
+        // Haritayı başlat (İstanbul merkezi)
+        map = L.map('map').setView([41.0082, 28.9784], 8);
+        
+        // OpenStreetMap katmanını ekle
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        function calculateDistance() {
+            const startLat = parseFloat(document.getElementById('startLat').value);
+            const startLng = parseFloat(document.getElementById('startLng').value);
+            const endLat = parseFloat(document.getElementById('endLat').value);
+            const endLng = parseFloat(document.getElementById('endLng').value);
+
+            if (!startLat || !startLng || !endLat || !endLng) {
+                alert('Lütfen tüm koordinatları girin!');
+                return;
+            }
+
+            // Önceki işaretçileri ve çizgiyi temizle
+            markers.forEach(marker => map.removeLayer(marker));
+            if (polyline) map.removeLayer(polyline);
+            markers = [];
+
+            // Yeni işaretçileri ekle
+            const startMarker = L.marker([startLat, startLng]).addTo(map);
+            const endMarker = L.marker([endLat, endLng]).addTo(map);
+            markers.push(startMarker, endMarker);
+
+            // İki nokta arasına çizgi çiz
+            polyline = L.polyline([[startLat, startLng], [endLat, endLng]], {
+                color: 'red'
+            }).addTo(map);
+
+            // Haritayı iki noktayı gösterecek şekilde ayarla
+            const bounds = L.latLngBounds([
+                [startLat, startLng],
+                [endLat, endLng]
+            ]);
+            map.fitBounds(bounds);
+
+            // Mesafeyi hesapla (Haversine formülü)
+            const R = 6371; // Dünya'nın yarıçapı (km)
+            const dLat = (endLat - startLat) * Math.PI / 180;
+            const dLon = (endLng - startLng) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                    Math.cos(startLat * Math.PI / 180) * Math.cos(endLat * Math.PI / 180) * 
+                    Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            const distance = R * c;
+
+            document.getElementById('distance').innerHTML = 
+                `Kuş uçuşu mesafe: ${distance.toFixed(2)} kilometre`;
+        }
+    </script>
+</body>
+</html> 

@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sesli Sohbet Odası</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <style>
+        .room-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .participants-list {
+            height: 300px;
+            overflow-y: auto;
+        }
+        .participant-card {
+            transition: all 0.3s ease;
+        }
+        .participant-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .audio-controls {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 1rem;
+            background: rgba(255,255,255,0.9);
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        }
+        .speaking {
+            border: 2px solid #28a745;
+        }
+        #micPermissionModal .modal-body {
+            text-align: center;
+            padding: 2rem;
+        }
+        .permission-icon {
+            font-size: 3rem;
+            color: #0d6efd;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Mikrofon İzni Modal -->
+    <div class="modal fade" id="micPermissionModal" data-bs-backdrop="static" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Mikrofon İzni Gerekli</h5>
+                </div>
+                <div class="modal-body">
+                    <i class="bi bi-mic-fill permission-icon"></i>
+                    <p>Sesli sohbete katılmak için mikrofon izni vermeniz gerekiyor.</p>
+                    <button id="requestPermission" class="btn btn-primary">
+                        <i class="bi bi-mic-fill"></i> İzin Ver
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">Sosyal Ağ</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/search">Kullanıcı Ara</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/profile/<%= currentUserId %>">Profilim</a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/logout">Çıkış Yap</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="room-container">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h4 class="card-title mb-0">Oda: <%= roomName %></h4>
+                        <div>
+                            <% if (isOwner) { %>
+                                <button id="roomSettings" class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#settingsModal">
+                                    <i class="bi bi-gear-fill"></i> Oda Ayarları
+                                </button>
+                            <% } %>
+                            <button id="leaveRoom" class="btn btn-danger">
+                                <i class="bi bi-box-arrow-right"></i> Odadan Ayrıl
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="participants-list mb-4">
+                        <h5 class="mb-3">Katılımcılar</h5>
+                        <div id="participantsList" class="row row-cols-1 row-cols-md-2 g-4">
+                            <!-- Katılımcılar dinamik olarak buraya eklenecek -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="audio-controls">
+        <div class="container">
+            <div class="d-flex justify-content-center align-items-center gap-3">
+                <button id="toggleMic" class="btn btn-lg btn-primary" disabled>
+                    <i class="bi bi-mic-fill"></i> Mikrofon
+                </button>
+                <div class="audio-meter">
+                    <div id="volumeMeter" class="progress" style="width: 200px;">
+                        <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Oda Ayarları Modal -->
+    <div class="modal fade" id="settingsModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Oda Ayarları</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="isPasswordProtected" class="form-label">Oda Güvenliği</label>
+                        <select class="form-select" id="isPasswordProtected">
+                            <option value="false">Açık Oda</option>
+                            <option value="true">Şifreli Oda</option>
+                        </select>
+                    </div>
+                    <div class="mb-3" id="passwordField" style="display: none;">
+                        <label for="password" class="form-label">Yeni Oda Şifresi</label>
+                        <input type="password" class="form-control" id="password">
+                    </div>
+                    <div class="mb-3">
+                        <label for="maxUsers" class="form-label">Maksimum Kullanıcı Sayısı</label>
+                        <input type="number" class="form-control" id="maxUsers" min="1" max="8" value="6">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                    <button type="button" class="btn btn-primary" id="saveSettings">Kaydet</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const currentUserId = '<%= currentUserId %>';
+        const roomId = '<%= roomId %>';
+        const username = '<%= username %>';
+        
+        let localStream;
+        let peerConnections = {};
+        let socket;
+        let isMuted = false;
+        let isForceMuted = false; // Yönetici tarafından susturulma durumu
+        const isOwner = '<%= isOwner %>' === 'true';
+
+        const micPermissionModal = new bootstrap.Modal(document.getElementById('micPermissionModal'));
+        const toggleMicBtn = document.getElementById('toggleMic');
+
+        // Mikrofon izni iste
+        async function requestMicrophonePermission() {
+            try {
+                console.log('Mikrofon izni isteniyor...');
+                localStream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true,
+                        channelCount: 1,
+                        sampleRate: 48000
+                    }
+                });
+                
+                console.log('Mikrofon izni alındı:', localStream.getAudioTracks()[0].enabled);
+                // İlk girişte mikrofonu kapat
+                localStream.getAudioTracks()[0].enabled = false;
+                isMuted = true;
+                
+                micPermissionModal.hide();
+                toggleMicBtn.disabled = false;
+                toggleMicBtn.classList.replace('btn-primary', 'btn-danger');
+                toggleMicBtn.innerHTML = '<i class="bi bi-mic-mute-fill"></i> Mikrofon Kapalı';
+                
+                setupAudioMeter();
+                initializeWebRTC();
+                
+            } catch (error) {
+                console.error('Mikrofon erişim hatası:', error);
+                alert('Mikrofona erişilemedi! Lütfen tarayıcı ayarlarından mikrofon izinlerini kontrol edin.');
+            }
+        }
+
+        // Ses seviyesi ölçer
+        function setupAudioMeter() {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const source = audioContext.createMediaStreamSource(localStream);
+            const analyser = audioContext.createAnalyser();
+            
+            analyser.fftSize = 2048;
+            analyser.smoothingTimeConstant = 0.8;
+            source.connect(analyser);
+            
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+            
+            function updateVolumeMeter() {
+                analyser.getByteFrequencyData(dataArray);
+                const volume = dataArray.reduce((a, b) => a + b) / dataArray.length;
+                const volumePercent = (volume / 255) * 100;
+                document.querySelector('#volumeMeter .progress-bar').style.width = `${volumePercent}%`;
+                requestAnimationFrame(updateVolumeMeter);
+            }
+            
+            updateVolumeMeter();
+        }
+
+        // WebRTC başlat
+        function initializeWebRTC() {
+            try {
+                socket = io('/', {
+                    transports: ['websocket'],
+                    upgrade: false,
+                    reconnection: true,
+                    reconnectionAttempts: 5,
+                    timeout: 10000
+                });
+
+                socket.on('connect', () => {
+                    console.log('Socket.IO bağlantısı kuruldu');
+                    setupSocketEvents();
+                    socket.emit('join-room', { roomId, userId: currentUserId, username });
+                });
+
+                socket.on('room-users', async (users) => {
+                    console.log('Odadaki kullanıcılar:', users);
+                    updateParticipantsList(users);
+
+                    // Yeni bağlantılar için peer oluştur
+                    for (const user of users) {
+                        if (user.userId !== currentUserId && !peerConnections[user.userId]) {
+                            console.log('Yeni kullanıcı için peer bağlantısı oluşturuluyor:', user.username);
+                            const pc = await createPeerConnection(user.userId, user.username);
+                            if (pc) {
+                                try {
+                                    const offer = await pc.createOffer({
+                                        offerToReceiveAudio: true,
+                                        offerToReceiveVideo: false
+                                    });
+                                    await pc.setLocalDescription(offer);
+                                    socket.emit('signal', { userId: user.userId, signal: offer });
+                                    console.log('Teklif gönderildi:', user.username);
+                                } catch (error) {
+                                    console.error('Teklif oluşturma hatası:', error);
+                                }
+                            }
+                        }
+                    }
+                });
+
+            } catch (error) {
+                console.error('WebRTC başlatma hatası:', error);
+                alert('WebRTC başlatılamadı. Lütfen sayfayı yenileyin.');
+            }
+        }
+
+        // Peer bağlantısı oluştur
+        async function createPeerConnection(userId, username) {
+            try {
+                const configuration = {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' },
+                        { urls: 'stun:stun2.l.google.com:19302' },
+                        { urls: 'stun:stun3.l.google.com:19302' },
+                        { urls: 'stun:stun4.l.google.com:19302' },
+                        {
+                            urls: 'turn:numb.viagenie.ca',
+                            username: 'webrtc@live.com',
+                            credential: 'muazkh'
+                        }
+                    ],
+                    iceCandidatePoolSize: 10
+                };
+
+                console.log('Peer bağlantısı oluşturuluyor:', userId);
+                const peerConnection = new RTCPeerConnection(configuration);
+                peerConnections[userId] = peerConnection;
+
+                // Ses akışını ekle
+                if (localStream) {
+                    console.log('Yerel ses akışı ekleniyor...');
+                    localStream.getTracks().forEach(track => {
+                        console.log('Track ekleniyor:', track.kind, track.enabled);
+                        peerConnection.addTrack(track, localStream);
+                    });
+                } else {
+                    console.error('Yerel ses akışı bulunamadı!');
+                    return null;
+                }
+
+                // ICE aday olayları
+                peerConnection.onicecandidate = event => {
+                    if (event.candidate) {
+                        console.log('ICE adayı gönderiliyor:', event.candidate.type);
+                        socket.emit('signal', { userId, signal: event.candidate });
+                    }
+                };
+
+                // ICE bağlantı durumu değiştiğinde
+                peerConnection.oniceconnectionstatechange = () => {
+                    console.log('ICE bağlantı durumu:', peerConnection.iceConnectionState);
+                    if (peerConnection.iceConnectionState === 'failed') {
+                        console.log('ICE bağlantısı başarısız, yeniden deneniyor...');
+                        peerConnection.restartIce();
+                    }
+                };
+
+                // Bağlantı durumu değiştiğinde
+                peerConnection.onconnectionstatechange = () => {
+                    console.log('Bağlantı durumu:', peerConnection.connectionState);
+                };
+
+                // Uzak ses akışı alındığında
+                peerConnection.ontrack = event => {
+                    console.log('Uzak ses akışı alındı:', event.streams[0].id);
+                    const audioElement = new Audio();
+                    audioElement.srcObject = event.streams[0];
+                    audioElement.autoplay = true;
+                    audioElement.volume = 1.0;
+                    
+                    audioElement.onloadedmetadata = () => {
+                        console.log('Ses meta verileri yüklendi, çalmaya başlanıyor...');
+                        audioElement.play()
+                            .then(() => console.log('Ses çalmaya başladı'))
+                            .catch(error => console.error('Ses çalma hatası:', error));
+                    };
+
+                    // Ses çalma hatası olursa
+                    audioElement.onerror = (error) => {
+                        console.error('Ses çalma hatası:', error);
+                    };
+
+                    // Ses durumu değiştiğinde
+                    audioElement.onplaying = () => {
+                        console.log('Ses çalınıyor:', event.streams[0].id);
+                    };
+
+                    audioElement.onstalled = () => {
+                        console.log('Ses durdu:', event.streams[0].id);
+                        audioElement.play().catch(console.error);
+                    };
+                };
+
+                return peerConnection;
+            } catch (error) {
+                console.error('Peer bağlantısı oluşturma hatası:', error);
+                return null;
+            }
+        }
+
+        // Socket.IO olaylarını dinle
+        function setupSocketEvents() {
+            socket.on('user-connected', async (userId, username) => {
+                console.log('Kullanıcı bağlandı:', username);
+                if (!peerConnections[userId]) {
+                    await createPeerConnection(userId, username);
+                }
+            });
+
+            socket.on('user-disconnected', userId => {
+                console.log('Kullanıcı ayrıldı:', userId);
+                if (peerConnections[userId]) {
+                    peerConnections[userId].close();
+                    delete peerConnections[userId];
+                }
+            });
+
+            socket.on('signal', async ({ userId, signal }) => {
+                try {
+                    console.log('Sinyal alındı:', userId, signal.type || 'ICE candidate');
+                    
+                    if (!peerConnections[userId]) {
+                        await createPeerConnection(userId);
+                    }
+                    
+                    const pc = peerConnections[userId];
+                    
+                    if (signal.type === 'offer') {
+                        console.log('Teklif alındı, cevap oluşturuluyor...');
+                        await pc.setRemoteDescription(new RTCSessionDescription(signal));
+                        const answer = await pc.createAnswer();
+                        await pc.setLocalDescription(answer);
+                        socket.emit('signal', { userId, signal: answer });
+                    } 
+                    else if (signal.type === 'answer') {
+                        console.log('Cevap alındı, uzak açıklama ayarlanıyor...');
+                        await pc.setRemoteDescription(new RTCSessionDescription(signal));
+                    } 
+                    else if (signal.candidate) {
+                        console.log('ICE adayı alındı, ekleniyor...');
+                        if (pc.remoteDescription) {
+                            await pc.addIceCandidate(new RTCIceCandidate(signal));
+                        }
+                    }
+                } catch (error) {
+                    console.error('Sinyal işleme hatası:', error);
+                }
+            });
+
+            socket.on('mute-user', (userId) => {
+                if (userId === currentUserId) {
+                    const audioTrack = localStream.getAudioTracks()[0];
+                    audioTrack.enabled = false;
+                    isMuted = true;
+                    isForceMuted = true;
+                    toggleMicBtn.classList.replace('btn-primary', 'btn-danger');
+                    toggleMicBtn.innerHTML = '<i class="bi bi-mic-mute-fill"></i> Mikrofon Kapalı';
+                    toggleMicBtn.disabled = true;
+                    
+                    // Mikrofon durumu ikonunu güncelle
+                    const statusIcon = document.querySelector(`#user-${userId} .audio-status i`);
+                    if (statusIcon) {
+                        statusIcon.className = 'bi bi-mic-mute-fill text-danger';
+                    }
+                }
+            });
+
+            socket.on('unmute-user', (userId) => {
+                if (userId === currentUserId) {
+                    const audioTrack = localStream.getAudioTracks()[0];
+                    audioTrack.enabled = true; // Mikrofonu otomatik olarak aç
+                    isMuted = false;
+                    isForceMuted = false;
+                    toggleMicBtn.disabled = false;
+                    toggleMicBtn.classList.replace('btn-danger', 'btn-primary');
+                    toggleMicBtn.innerHTML = '<i class="bi bi-mic-fill"></i> Mikrofon';
+                    
+                    // Mikrofon durumu ikonunu güncelle
+                    const statusIcon = document.querySelector(`#user-${userId} .audio-status i`);
+                    if (statusIcon) {
+                        statusIcon.className = 'bi bi-mic-fill text-success';
+                    }
+                }
+            });
+        }
+
+        // Katılımcılar listesini güncelle
+        function updateParticipantsList(users) {
+            const participantsList = document.getElementById('participantsList');
+            participantsList.innerHTML = '';
+
+            // Kendimizi ekle
+            const selfCard = createParticipantCard(currentUserId, username + ' (Sen)', true);
+            participantsList.appendChild(selfCard);
+
+            // Diğer kullanıcıları ekle
+            users.forEach(user => {
+                if (user.userId !== currentUserId) {
+                    const card = createParticipantCard(user.userId, user.username, false);
+                    participantsList.appendChild(card);
+                }
+            });
+        }
+
+        // Katılımcı kartı oluştur
+        function createParticipantCard(userId, name, isSelf = false) {
+            const div = document.createElement('div');
+            div.className = 'col';
+            div.innerHTML = `
+                <div class="card participant-card ${isSelf ? 'border-primary' : ''}" id="user-${userId}">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h6 class="card-title mb-0">${name}</h6>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="audio-status">
+                                    <i class="bi bi-mic-mute-fill text-danger"></i>
+                                </div>
+                                ${isOwner && !isSelf ? `
+                                    <button class="btn btn-sm btn-outline-success toggle-mute" data-user-id="${userId}" data-muted="true">
+                                        <i class="bi bi-mic-fill"></i>
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Mikrofon kapatma/açma butonu için olay dinleyici
+            if (isOwner && !isSelf) {
+                div.querySelector('.toggle-mute').addEventListener('click', (e) => {
+                    const button = e.currentTarget;
+                    const userId = button.dataset.userId;
+                    const isMuted = button.dataset.muted === 'true';
+                    const action = isMuted ? 'unmute' : 'mute';
+
+                    fetch(`/api/rooms/${roomId}/mute/${userId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ action })
+                    }).then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            button.dataset.muted = !isMuted;
+                            const icon = button.querySelector('i');
+                            const statusIcon = button.parentElement.querySelector('.audio-status i');
+                            
+                            if (!isMuted) {
+                                // Sustur
+                                button.classList.remove('btn-outline-success');
+                                button.classList.add('btn-outline-danger');
+                                icon.classList.remove('bi-mic-fill');
+                                icon.classList.add('bi-mic-mute-fill');
+                                statusIcon.className = 'bi bi-mic-mute-fill text-danger';
+                            } else {
+                                // Sesi aç
+                                button.classList.remove('btn-outline-danger');
+                                button.classList.add('btn-outline-success');
+                                icon.classList.remove('bi-mic-mute-fill');
+                                icon.classList.add('bi-mic-fill');
+                                statusIcon.className = 'bi bi-mic-fill text-success';
+                            }
+                        }
+                    })
+                    .catch(error => console.error('Mikrofon kontrolü hatası:', error));
+                });
+            }
+
+            return div;
+        }
+
+        // Mikrofon düğmesi kontrolü
+        toggleMicBtn.addEventListener('click', () => {
+            if (localStream && !isForceMuted) {
+                const audioTrack = localStream.getAudioTracks()[0];
+                audioTrack.enabled = !audioTrack.enabled;
+                isMuted = !audioTrack.enabled;
+                
+                // Mikrofon durumunu güncelle
+                const selfStatusIcon = document.querySelector(`#user-${currentUserId} .audio-status i`);
+                
+                if (isMuted) {
+                    toggleMicBtn.classList.replace('btn-primary', 'btn-danger');
+                    toggleMicBtn.innerHTML = '<i class="bi bi-mic-mute-fill"></i> Mikrofon Kapalı';
+                    if (selfStatusIcon) {
+                        selfStatusIcon.className = 'bi bi-mic-mute-fill text-danger';
+                    }
+                } else {
+                    toggleMicBtn.classList.replace('btn-danger', 'btn-primary');
+                    toggleMicBtn.innerHTML = '<i class="bi bi-mic-fill"></i> Mikrofon';
+                    if (selfStatusIcon) {
+                        selfStatusIcon.className = 'bi bi-mic-fill text-success';
+                    }
+                }
+            }
+        });
+
+        // Odadan ayrılma
+        document.getElementById('leaveRoom').addEventListener('click', () => {
+            if (confirm('Odadan ayrılmak istediğinize emin misiniz?')) {
+                Object.values(peerConnections).forEach(pc => pc.close());
+                if (localStream) {
+                    localStream.getTracks().forEach(track => track.stop());
+                }
+                if (socket) socket.disconnect();
+                window.location.href = '/';
+            }
+        });
+
+        // Mikrofon izni modalını göster
+        document.getElementById('requestPermission').addEventListener('click', requestMicrophonePermission);
+
+        // Sayfa yüklendiğinde
+        window.addEventListener('load', () => {
+            micPermissionModal.show();
+        });
+
+        // Sayfa kapatıldığında
+        window.addEventListener('beforeunload', () => {
+            Object.values(peerConnections).forEach(pc => pc.close());
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+            if (socket) socket.disconnect();
+        });
+
+        // Oda ayarlarını kaydet
+        if (document.getElementById('saveSettings')) {
+            document.getElementById('saveSettings').addEventListener('click', () => {
+                const maxUsers = document.getElementById('maxUsers').value;
+                const isPasswordProtected = document.getElementById('isPasswordProtected').value;
+                const password = document.getElementById('password').value;
+                
+                if (isPasswordProtected === 'true' && !password) {
+                    alert('Şifreli oda için şifre gereklidir');
+                    return;
+                }
+
+                fetch(`/api/rooms/${roomId}/settings`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        maxUsers,
+                        isPasswordProtected: isPasswordProtected === 'true',
+                        password: isPasswordProtected === 'true' ? password : null
+                    })
+                }).then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Ayarlar kaydedildi');
+                        bootstrap.Modal.getInstance(document.getElementById('settingsModal')).hide();
+                    }
+                })
+                .catch(error => console.error('Ayar kaydetme hatası:', error));
+            });
+
+            // Şifre alanını göster/gizle
+            document.getElementById('isPasswordProtected').addEventListener('change', function() {
+                const passwordField = document.getElementById('passwordField');
+                const passwordInput = document.getElementById('password');
+                
+                if (this.value === 'true') {
+                    passwordField.style.display = 'block';
+                    passwordInput.required = true;
+                } else {
+                    passwordField.style.display = 'none';
+                    passwordInput.required = false;
+                    passwordInput.value = '';
+                }
+            });
+        }
+    </script>
+</body>
+</html> 

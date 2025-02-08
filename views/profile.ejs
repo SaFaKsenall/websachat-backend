@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= profile.username %> - Profil</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <style>
+        .gift-card {
+            transition: transform 0.3s;
+            cursor: pointer;
+        }
+        .gift-card:hover {
+            transform: translateY(-5px);
+        }
+        .coin-balance {
+            background: linear-gradient(45deg, #FFD700, #FFA500);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 50px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .coin-icon {
+            color: #FFD700;
+            font-size: 1.5em;
+            margin-right: 5px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">Sosyal Ağ</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/search">Kullanıcı Ara</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/profile/<%= currentUserId %>">Profilim</a>
+                    </li>
+                </ul>
+                <div class="d-flex align-items-center me-3">
+                    <div class="coin-balance">
+                        <i class="bi bi-coin coin-icon"></i>
+                        <span class="fw-bold"><%= isOwnProfile ? profile.coins || 0 : currentUserCoins || 0 %> Jeton</span>
+                    </div>
+                </div>
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/logout">Çıkış Yap</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <div class="mb-3">
+                            <img src="https://via.placeholder.com/150" class="rounded-circle" alt="Profil Fotoğrafı">
+                        </div>
+                        <h4 class="card-title"><%= profile.username %></h4>
+                        <div class="d-flex justify-content-around mb-3">
+                            <div class="text-center">
+                                <h5><%= profile.followerCount || 0 %></h5>
+                                <small class="text-muted">Takipçi</small>
+                            </div>
+                            <div class="text-center">
+                                <h5><%= profile.followingCount || 0 %></h5>
+                                <small class="text-muted">Takip Edilen</small>
+                            </div>
+                        </div>
+                        
+                        <% if (!isOwnProfile) { %>
+                            <% if (!isFollowing) { %>
+                                <form action="/api/users/<%= profile.id %>/follow" method="POST">
+                                    <button type="submit" class="btn btn-primary w-100">Takip Et</button>
+                                </form>
+                            <% } else { %>
+                                <form action="/api/users/<%= profile.id %>/unfollow" method="POST">
+                                    <button type="submit" class="btn btn-danger w-100">Takibi Bırak</button>
+                                </form>
+                            <% } %>
+                        <% } %>
+                    </div>
+                </div>
+
+                <!-- Hediyelerim Bölümü -->
+                <div class="card mt-4">
+                    <div class="card-body">
+                        <h5 class="card-title mb-4">
+                            <i class="bi bi-gift-fill text-primary"></i> 
+                            Hediyelerim
+                        </h5>
+                        <div class="row row-cols-2 g-3">
+                            <div class="col">
+                                <div class="card gift-card" data-bs-toggle="modal" data-bs-target="#sendGiftModal" data-gift-type="heart" data-gift-price="10">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-heart-fill text-danger fs-3"></i>
+                                        <p class="mb-0 mt-2">Kalp</p>
+                                        <small class="text-muted">x<%= profile.gifts?.heart || 0 %></small>
+                                        <div class="mt-1">
+                                            <small class="text-primary">10 Jeton</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col">
+                                <div class="card gift-card" data-bs-toggle="modal" data-bs-target="#sendGiftModal" data-gift-type="star" data-gift-price="25">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-star-fill text-warning fs-3"></i>
+                                        <p class="mb-0 mt-2">Yıldız</p>
+                                        <small class="text-muted">x<%= profile.gifts?.star || 0 %></small>
+                                        <div class="mt-1">
+                                            <small class="text-primary">25 Jeton</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col">
+                                <div class="card gift-card" data-bs-toggle="modal" data-bs-target="#sendGiftModal" data-gift-type="diamond" data-gift-price="50">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-gem text-info fs-3"></i>
+                                        <p class="mb-0 mt-2">Elmas</p>
+                                        <small class="text-muted">x<%= profile.gifts?.diamond || 0 %></small>
+                                        <div class="mt-1">
+                                            <small class="text-primary">50 Jeton</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col">
+                                <div class="card gift-card" data-bs-toggle="modal" data-bs-target="#sendGiftModal" data-gift-type="trophy" data-gift-price="100">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-trophy-fill text-success fs-3"></i>
+                                        <p class="mb-0 mt-2">Kupa</p>
+                                        <small class="text-muted">x<%= profile.gifts?.trophy || 0 %></small>
+                                        <div class="mt-1">
+                                            <small class="text-primary">100 Jeton</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Hakkında</h5>
+                        <p class="card-text">
+                            <small class="text-muted">
+                                Kayıt Tarihi: <%= new Date(profile.createdAt?.seconds * 1000).toLocaleDateString('tr-TR') %>
+                            </small>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hediye Gönderme Modal -->
+    <div class="modal fade" id="sendGiftModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Hediye Gönder</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Seçilen hediyeyi göndermek istiyor musunuz?</p>
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <div>
+                            <strong>Hediye:</strong> <span id="selectedGiftName"></span>
+                        </div>
+                        <div>
+                            <strong>Fiyat:</strong> <span id="selectedGiftPrice"></span> Jeton
+                        </div>
+                    </div>
+                    <div class="alert alert-info">
+                        Mevcut Jetonunuz: <strong><%= currentUserCoins || 0 %></strong>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                    <button type="button" class="btn btn-primary" id="sendGiftBtn">Gönder</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Jeton Satın Alma Modal -->
+    <div class="modal fade" id="buyCoinsModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Jeton Satın Al</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row row-cols-1 row-cols-md-2 g-4">
+                        <div class="col">
+                            <div class="card h-100">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">100 Jeton</h5>
+                                    <p class="card-text">5₺</p>
+                                    <button class="btn btn-primary buy-coins" data-amount="100">Satın Al</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="card h-100">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">250 Jeton</h5>
+                                    <p class="card-text">10₺</p>
+                                    <button class="btn btn-primary buy-coins" data-amount="250">Satın Al</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="card h-100">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">500 Jeton</h5>
+                                    <p class="card-text">20₺</p>
+                                    <button class="btn btn-primary buy-coins" data-amount="500">Satın Al</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="card h-100">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">1000 Jeton</h5>
+                                    <p class="card-text">35₺</p>
+                                    <button class="btn btn-primary buy-coins" data-amount="1000">Satın Al</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Hediye gönderme işlemleri
+        const giftCards = document.querySelectorAll('.gift-card');
+        const sendGiftModal = document.getElementById('sendGiftModal');
+        const selectedGiftName = document.getElementById('selectedGiftName');
+        const selectedGiftPrice = document.getElementById('selectedGiftPrice');
+        const sendGiftBtn = document.getElementById('sendGiftBtn');
+        let selectedGiftType = '';
+
+        giftCards.forEach(card => {
+            card.addEventListener('click', () => {
+                if (!card.dataset.giftType) return;
+                
+                selectedGiftType = card.dataset.giftType;
+                selectedGiftName.textContent = card.querySelector('p').textContent;
+                selectedGiftPrice.textContent = card.dataset.giftPrice;
+            });
+        });
+
+        sendGiftBtn.addEventListener('click', async () => {
+            try {
+                const response = await fetch(`/api/users/<%= profile.id %>/send-gift`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ giftType: selectedGiftType })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Hediye başarıyla gönderildi!');
+                    location.reload();
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                alert(error.message || 'Hediye gönderilirken bir hata oluştu');
+            }
+        });
+
+        // Jeton satın alma işlemleri
+        document.querySelectorAll('.buy-coins').forEach(button => {
+            button.addEventListener('click', async () => {
+                try {
+                    const amount = button.dataset.amount;
+                    const response = await fetch('/api/users/buy-coins', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ amount })
+                    });
+
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        alert('Jetonlar başarıyla satın alındı!');
+                        location.reload();
+                    } else {
+                        throw new Error(data.error);
+                    }
+                } catch (error) {
+                    alert(error.message || 'Jeton satın alınırken bir hata oluştu');
+                }
+            });
+        });
+
+        // Jeton bakiyesine tıklanınca satın alma modalını aç
+        document.querySelector('.coin-balance').addEventListener('click', () => {
+            new bootstrap.Modal(document.getElementById('buyCoinsModal')).show();
+        });
+    </script>
+</body>
+</html> 

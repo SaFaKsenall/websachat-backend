@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ana Sayfa</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">Sosyal Ağ</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/search">Kullanıcı Ara</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/profile/<%= currentUser.id %>">Profilim</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/location">Konum</a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/logout">Çıkış Yap</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Profilim</h5>
+                        <p class="card-text">
+                            <strong>Kullanıcı Adı:</strong> <%= currentUser.username %><br>
+                            <strong>Takipçi:</strong> <%= currentUser.followerCount || 0 %><br>
+                            <strong>Takip Edilen:</strong> <%= currentUser.followingCount || 0 %>
+                        </p>
+                        <a href="/profile/<%= currentUser.id %>" class="btn btn-primary">Profile Git</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-8">
+                <div class="row">
+                    <div class="col-md-12 mb-4">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Kullanıcı Ara</h5>
+                                <form action="/search" method="GET" class="mb-3">
+                                    <div class="input-group">
+                                        <input type="text" name="q" class="form-control" placeholder="Kullanıcı adı ara...">
+                                        <button type="submit" class="btn btn-primary">Ara</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Konum İşlemleri</h5>
+                                <p class="card-text">İki konum arasındaki mesafeyi hesaplamak için aşağıdaki butona tıklayın.</p>
+                                <a href="/location" class="btn btn-success">
+                                    <i class="bi bi-geo-alt"></i> Konum Hesapla
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Sesli Sohbet</h5>
+                                <p class="card-text">Arkadaşlarınızla sesli sohbet etmek için yeni bir oda oluşturun.</p>
+                                <form action="/api/rooms" method="POST">
+                                    <div class="mb-3">
+                                        <label for="roomName" class="form-label">Oda Adı</label>
+                                        <input type="text" class="form-control" id="roomName" name="roomName" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="isPasswordProtected" class="form-label">Oda Güvenliği</label>
+                                        <select class="form-select" id="isPasswordProtected" name="isPasswordProtected">
+                                            <option value="false">Açık Oda</option>
+                                            <option value="true">Şifreli Oda</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3" id="passwordField" style="display: none;">
+                                        <label for="password" class="form-label">Oda Şifresi</label>
+                                        <input type="password" class="form-control" id="password" name="password">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="maxUsers" class="form-label">Maksimum Kullanıcı Sayısı</label>
+                                        <input type="number" class="form-control" id="maxUsers" name="maxUsers" min="1" max="8" value="6">
+                                    </div>
+                                    <button type="submit" class="btn btn-success">
+                                        <i class="bi bi-mic-fill"></i> Yeni Oda Oluştur
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.getElementById('isPasswordProtected').addEventListener('change', function() {
+            const passwordField = document.getElementById('passwordField');
+            const passwordInput = document.getElementById('password');
+            
+            if (this.value === 'true') {
+                passwordField.style.display = 'block';
+                passwordInput.required = true;
+            } else {
+                passwordField.style.display = 'none';
+                passwordInput.required = false;
+                passwordInput.value = '';
+            }
+        });
+    </script>
+</body>
+</html> 

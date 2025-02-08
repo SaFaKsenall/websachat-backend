@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kullanıcı Ara</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .search-results {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .user-card {
+            transition: all 0.3s ease;
+        }
+        .user-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .search-box {
+            position: relative;
+        }
+        .search-info {
+            position: absolute;
+            right: 10px;
+            top: -25px;
+            font-size: 0.9em;
+            color: #6c757d;
+        }
+        #loading {
+            display: none;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">Sosyal Ağ</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/search">Kullanıcı Ara</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/profile/<%= currentUserId %>">Profilim</a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/logout">Çıkış Yap</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Kullanıcı Ara</h5>
+                <div class="search-box mb-4">
+                    <small class="search-info">Yazmaya başladığınızda sonuçlar otomatik görüntülenecek</small>
+                    <div class="input-group">
+                        <input type="text" 
+                               id="searchInput"
+                               class="form-control" 
+                               placeholder="Kullanıcı adını yazmaya başlayın..." 
+                               value="<%= searchQuery || '' %>"
+                               autocomplete="off"
+                               minlength="1">
+                        <div class="input-group-append">
+                            <span class="input-group-text" id="loading">
+                                <div class="spinner-border spinner-border-sm" role="status">
+                                    <span class="visually-hidden">Aranıyor...</span>
+                                </div>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="searchResults">
+                    <% if (users.length > 0) { %>
+                        <h6 class="mb-3">
+                            <%= searchQuery ? `"${searchQuery}" için arama sonuçları` : 'Tüm Kullanıcılar' %>
+                            <small class="text-muted">(<%= users.length %> kullanıcı bulundu)</small>
+                        </h6>
+                        <div class="search-results">
+                            <div class="row row-cols-1 row-cols-md-2 g-4">
+                                <% users.forEach(user => { %>
+                                    <div class="col">
+                                        <div class="card h-100 user-card">
+                                            <div class="card-body">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <h6 class="card-title mb-1"><%= user.username %></h6>
+                                                        <small class="text-muted">
+                                                            <%= user.followerCount || 0 %> takipçi • 
+                                                            <%= user.followingCount || 0 %> takip edilen
+                                                        </small>
+                                                    </div>
+                                                    <a href="/profile/<%= user.id %>" class="btn btn-outline-primary btn-sm">Profile Git</a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <% }); %>
+                            </div>
+                        </div>
+                    <% } else { %>
+                        <div class="alert alert-info">
+                            <%= searchQuery ? 'Kullanıcı bulunamadı. Farklı bir arama terimi deneyin.' : 'Kullanıcı Armaya Ne Dersin ?.' %>
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let searchTimeout;
+        const searchInput = document.getElementById('searchInput');
+        const searchResults = document.getElementById('searchResults');
+        const loading = document.getElementById('loading');
+
+        searchInput.addEventListener('input', function(e) {
+            const query = e.target.value.trim();
+            
+            // Önceki zamanlayıcıyı temizle
+            clearTimeout(searchTimeout);
+            
+            loading.style.display = 'block';
+            
+            // 300ms bekle ve sonra aramayı yap
+            searchTimeout = setTimeout(() => {
+                fetch(`/search?q=${encodeURIComponent(query)}`)
+                    .then(response => response.text())
+                    .then(html => {
+                        // HTML'den sadece arama sonuçlarını al
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(html, 'text/html');
+                        const results = doc.querySelector('#searchResults');
+                        
+                        if (results) {
+                            searchResults.innerHTML = results.innerHTML;
+                        }
+                        loading.style.display = 'none';
+                    })
+                    .catch(error => {
+                        console.error('Arama hatası:', error);
+                        loading.style.display = 'none';
+                    });
+            }, 300);
+        });
+    </script>
+</body>
+</html> 

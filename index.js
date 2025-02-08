@@ -31,10 +31,13 @@ app.set('trust proxy', true);
 
 // Session ayarları
 app.use(session({
-  secret: 'gizli-anahtar',
+  secret: process.env.SESSION_SECRET || 'gizli-anahtar',
   resave: false,
   saveUninitialized: true,
-  cookie: { secure: false }
+  cookie: { 
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 24 * 60 * 60 * 1000 // 24 saat
+  }
 }));
 
 // Auth Middleware
@@ -47,12 +50,17 @@ const requireLogin = (req, res, next) => {
 
 // Firebase yapılandırması
 try {
-  const serviceAccount = require('./jobapp-14c52-firebase-adminsdk-fujz3-f235da0fdd.json');
+  let serviceAccount;
+  if (process.env.FIREBASE_ADMIN_CREDENTIALS) {
+    serviceAccount = JSON.parse(process.env.FIREBASE_ADMIN_CREDENTIALS);
+  } else {
+    serviceAccount = require('./jobapp-14c52-firebase-adminsdk-fujz3-f235da0fdd.json');
+  }
   
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
-    databaseURL: 'https://jobapp-14c52-default-rtdb.firebaseio.com',
-    projectId: serviceAccount.project_id
+    databaseURL: process.env.FIREBASE_DATABASE_URL,
+    projectId: process.env.FIREBASE_PROJECT_ID
   });
 
   const db = admin.firestore();
@@ -61,7 +69,7 @@ try {
   db.collection('test').doc('test').get()
     .then(() => {
       console.log('✅ Firebase veritabanına başarıyla bağlanıldı!');
-      console.log(`📁 Proje ID: ${serviceAccount.project_id}`);
+      console.log(`📁 Proje ID: ${process.env.FIREBASE_PROJECT_ID}`);
     })
     .catch((error) => {
       console.error('❌ Firebase veritabanına bağlanılamadı:', error);
